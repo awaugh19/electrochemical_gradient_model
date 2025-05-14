@@ -5,385 +5,459 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Electrochemical Gradient Model</title>
-  <style>
-    /* CSS remains largely the same, with minor organizational tweaks */
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #f0f0f0;
-    }
 
-    #sim-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-left: 300px;
-  box-sizing: border-box;
-  min-height: 100vh;
-  position: relative;
-  gap: 15px;           /* Adds space between canvas, forceDisplay, and table */
-  padding-top: 20px;   /* Moves everything in container up */
+</head>
+<style>
+  :root {
+    --max-width: 900px;
+  }
+
+  body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  #wrapper {
+    width: 100%;
+    max-width: var(--max-width);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 15px;
+    box-sizing: border-box;
+  }
+
+  #controls {
+    background: #fff;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .input-row-with-cell {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  label {
+    font-weight: bold;
+  }
+
+  input[type="number"] {
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    width: 100px;
+  }
+
+  .charge-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .charge-group.column-layout {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  .charge-group label {
+    font-weight: normal;
+  }
+
+  button {
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: 1px solid #aaa;
+    cursor: pointer;
+    background: #f9f9f9;
+  }
+
+  canvas {
+    width: 100%;
+    height: auto;
+    background: white;
+    border: 2px solid #ccc;
+  }
+
+  #forceDisplay {
+    background: #fff;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+  }
+
+  #runHistoryTable {
+  width: 98%; /* Slightly narrower */
+  border-collapse: collapse;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  font-size: 0.93em; /* 7% font reduction */
+  line-height: 1.3; /* Tighter line spacing */
 }
 
+#runHistoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
 
-    canvas {
-      display: block;
-      background: white;
-      margin: 10px auto;
-      border: 2px solid #ccc;
+#runHistoryTable th, #runHistoryTable td {
+  padding: 5px 3px;
+  border: 1px solid #ddd;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Column width distribution */
+#runHistoryTable th:nth-child(1), #runHistoryTable td:nth-child(1) { width: 5%; }
+#runHistoryTable th:nth-child(n+2):nth-child(-n+4), 
+#runHistoryTable td:nth-child(n+2):nth-child(-n+4) { width: 8%; }
+#runHistoryTable th:nth-child(5), #runHistoryTable td:nth-child(5) { width: 12%; }
+#runHistoryTable th:nth-child(n+6):nth-child(-n+8), 
+#runHistoryTable td:nth-child(n+6):nth-child(-n+8) { width: 8%; }
+#runHistoryTable th:nth-child(9), #runHistoryTable td:nth-child(9) { width: 10%; }
+
+@media (max-width: 768px) {
+  #runHistoryTable {
+    font-size: 11px;
+  }
+  #runHistoryTable th, #runHistoryTable td {
+    padding: 3px 2px;
+  }
+}
+  @media (min-width: 768px) {
+    #wrapper {
+      flex-direction: row;
+      align-items: flex-start;
     }
 
     #controls {
-      position: absolute;
+      flex: 1;
+      max-width: 280px;
+      position: sticky;
       top: 10px;
-      left: 10px;
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
+    }
+
+    #sim-area {
+      flex: 2;
       display: flex;
       flex-direction: column;
       gap: 15px;
-      width: 280px;
-      z-index: 1000;
     }
+  }
 
-    label,
-    .charge-group {
-      display: block;
-      margin: 0;
-    }
+  @media (max-width: 767px) {
 
+    input[type="number"],
     button {
-      margin-top: 10px;
-      padding: 8px 12px;
-      font-size: 14px;
-      border-radius: 6px;
-      border: 1px solid #aaa;
-      background: #f9f9f9;
-      cursor: pointer;
+      width: 100%;
+      font-size: 18px;
     }
 
-    #timerDisplay,
-    #tripTotal,
-    #previousRun {
-      position: absolute;
-      background: #fff;
-      padding: 10px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      z-index: 1000;
+    #runHistoryTable {
+      font-size: 12px;
+      display: block;
+      overflow-x: auto;
     }
 
-    #timerDisplay {
-      top: 10px;
-      right: 20px;
-      font-weight: bold;
+    canvas {
+      width: 100% !important;
+      height: auto !important;
     }
 
-    #tripTotal {
-      top: 60px;
-      right: 20px;
-      font-weight: bold;
-      display: none;
+    .input-row-with-cell {
+      flex-direction: column;
+      align-items: flex-start;
     }
 
-    .mM-input {
-      width: 50px;
-      padding: 5px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
+    #cellReference {
+      align-self: center;
     }
-
-    .mV-input {
-      width: 60px;
-      padding: 5px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-    }
-
-    #forceDisplay {
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px;
-      border-radius: 8px;
-      margin: 0px auto;
-      width: 800px;
-      text-align: center;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      z-index: 1000;
-    }
-    #runHistoryTable th, #runHistoryTable td {
-  padding: 8px 10px;
-  border: 1px solid #ccc;
-  text-align: center;
-  margin: 10px auto;
-}
-#runHistoryTable th {
-  background-color: #e8f5e9;
-}
-#runHistoryTable {
-  margin: 0 auto 30px; /* Top, left/right, bottom */
-}
-#runHistoryTable tr:nth-child(even) {
-  background-color: #f9f9f9;
-}
-.input-row-with-cell {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-#cellReference {
-  flex-shrink: 0;
-  margin-top: 5px;
-}
-
-  </style>
-</head>
+  }
+</style>
 
 <body>
+  <div id="wrapper">
     <div id="controls">
-        <div class="input-row-with-cell">
-          <div class="input-group">
-            <label style="color: forestgreen;">[IN] (mM):</label>
-            <input type="number" id="concOutside" class="mM-input" min="0" max="1000" value="100" step="1" />
-      
-            <label style="color: #FFA500;">[OUT] (mM):</label>
-            <input type="number" id="concInside" class="mM-input" min="0" max="1000" value="50" step="1" />
+      <div class="input-row-with-cell">
+        <div class="input-group">
+          <div style="font-weight: bold; margin-bottom: 5px;">Concentration Gradient:</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Labels row -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-left: 0;">
+              <div style="width: 50px; text-align: center;">
+                <label style="color: forestgreen;">[IN]</label>
+              </div>
+              <div style="width: 20px;"></div> <!-- Spacer for minus symbol -->
+              <div style="width: 50px; text-align: center;">
+                <label style="color: #FFA500;">[OUT]</label>
+              </div>
+            </div>
+            
+            <!-- Inputs and calculation row -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="number" id="concOutside" min="0" max="1000" value="100" step="1" 
+                     style="width: 50px; text-align: right; padding: 4px; padding-right: 8px;" />
+              <span style="width: 10px; text-align: center;">−</span>
+              <input type="number" id="concInside" min="0" max="1000" value="50" step="1" 
+                     style="width: 50px; text-align: right; padding: 4px; padding-right: 8px;" />
+              <span style="width: 10px; text-align: center;">=</span>
+              <div id="gradientValue" style="min-width: 60px; font-weight: bold; text-align: right; padding: 4px;">
+                50 mM
+              </div>
+            </div>
           </div>
-      
-          <div id="cellReference">
-            <svg width="70" height="70" viewBox="0 0 100 100">
-                <rect x="0" y="0" width="100" height="100" fill="#FFA500" />
-                <circle cx="50" cy="50" r="30" fill="forestgreen" />
-            </svg>
-          </div>
         </div>
-      
-        <div id="gradientValue">Concentration Gradient: 90 mM</div>
-      
-        <label for="membranePotential" style="color: black;">Membrane Potential (mV):</label>
-        <input type="number" id="membranePotential" class="mV-input" min="-1000" max="1000" value="-70" step="1" />
-      
-        <div class="charge-group">
-          <strong>Resistance:</strong>
-          <label><input type="radio" name="resistance" value="0" checked /> None</label>
-          <label><input type="radio" name="resistance" value="1" /> Low</label>
-          <label><input type="radio" name="resistance" value="2" /> Medium</label>
-          <label><input type="radio" name="resistance" value="3" /> High</label>
+        <div id="cellReference">
+          <svg width="80" height="80" viewBox="0 0 100 100">
+            <rect x="0" y="0" width="100" height="100" fill="#FFA500" />
+            <circle cx="50" cy="50" r="30" fill="forestgreen" />
+            <text x="50" y="50" fill="white" font-size="10" text-anchor="middle" dominant-baseline="middle" font-weight="bold">Cell (IN)</text>
+            <text x="90" y="15" fill="white" font-size="10" text-anchor="end" font-weight="bold">ECF (OUT)</text>
+          </svg>
         </div>
-      
-        <div class="charge-group">
-          <strong>Ion Charge:</strong>
-          <label><input type="radio" name="ionCharge" value="positive" /> +</label>
-          <label><input type="radio" name="ionCharge" value="negative" checked /> −</label>
-        </div>
-      
-        <div class="charge-group">
-          <strong>Start Position:</strong>
-          <label><input type="radio" name="startPosition" value="IN" checked />IN</label>
-          <label><input type="radio" name="startPosition" value="OUT" />OUT</label>
-        </div>
-      
-        <button id="togglePlayPause">Play</button>
-        <button id="reset">Reset</button>
-        <button id="clearHistory">Clear Table</button>
       </div>
-      
-      <div id="sim-container">
-        <canvas id="gameCanvas" width="800" height="500"></canvas>
-        <div id="forceDisplay">Forces: Calculating...</div>
-      
-        <table id="runHistoryTable" style="margin: 20px auto; background: #fff; border-collapse: collapse; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+
+      <label for="membranePotential" style="color: black;">Membrane Potential (mV):</label>
+      <input type="number" id="membranePotential" min="-1000" max="1000" value="-70" step="1" />
+
+      <div class="charge-group column-layout">
+        <strong>Resistance:</strong>
+        <label><input type="radio" name="resistance" value="0" checked /> None</label>
+        <label><input type="radio" name="resistance" value="1" /> Low</label>
+        <label><input type="radio" name="resistance" value="2" /> Medium</label>
+        <label><input type="radio" name="resistance" value="3" /> High</label>
+      </div>
+
+      <div class="charge-group">
+        <strong>Ion Charge:</strong>
+        <label><input type="radio" name="ionCharge" value="positive" /> +</label>
+        <label><input type="radio" name="ionCharge" value="negative" checked /> −</label>
+      </div>
+
+      <div class="charge-group">
+        <strong>Start Position:</strong>
+        <label><input type="radio" name="startPosition" value="IN" checked />IN</label>
+        <label><input type="radio" name="startPosition" value="OUT" />OUT</label>
+      </div>
+
+      <button id="togglePlayPause">Play</button>
+      <button id="reset">Reset</button>
+      <button id="clearHistory">Clear Table</button>
+
+      <div id="tripInfo"
+        style="display: flex; gap: 1em; justify-content: center; background: #fff; padding: 8px; border-radius: 6px; box-shadow: 0 0 8px rgba(0, 0, 0, 0.1); margin-top: 8px;">
+        <span id="timerDisplay">Trip Time: 0.0 s</span>
+        <span id="tripTotal" style="visibility: hidden;">Total: --</span>
+      </div>
+    </div>
+
+    <div id="sim-area">
+      <canvas id="gameCanvas" width="800" height="500"></canvas>
+      <div id="forceDisplay">Forces: Calculating...</div>
+      <div style="overflow-x: auto;">
+        <table id="runHistoryTable">
           <thead>
-            <tr style="background-color: #e0e0e0;">
+            <tr>
               <th>#</th>
               <th>[IN] (mM)</th>
               <th>[OUT] (mM)</th>
               <th>Vm (mV)</th>
-              <th>Resistance</th>
+              <th>R</th>
               <th>Ion</th>
               <th>Start</th>
-              <th>Direction</th>
-              <th>Trip Time (s)</th>
+              <th>End</th>
+              <th>Total (s)</th>
             </tr>
           </thead>
           <tbody id="runHistoryBody"></tbody>
         </table>
       </div>
-      
-      <div id="timerDisplay">Trip Time: 0.0 s</div>
-      <div id="tripTotal" style="display: none;">Trip Total: 0.0 s</div>
-      
-  
-  <script>
-    //----- Utility Functions -----//
-    /** Debounce function to limit the rate at which a function is called.
-     * @param {Function} fn - The function to debounce.
-     * @param {number} delay - The delay in milliseconds.
-     * @returns {Function} A debounced version of the function.
-     */
-    const debounce = (fn, delay = 100) => {
-      let timer;
-      return (...args) => {
-        clearTimeout(timer);
-        timer = setTimeout(() => fn(...args), delay);
+    </div>
+
+    <script>
+      //----- Utility Functions -----//
+      /** Debounce function to limit the rate at which a function is called.
+       * @param {Function} fn - The function to debounce.
+       * @param {number} delay - The delay in milliseconds.
+       * @returns {Function} A debounced version of the function.
+       */
+      const debounce = (fn, delay = 100) => {
+        let timer;
+        return (...args) => {
+          clearTimeout(timer);
+          timer = setTimeout(() => fn(...args), delay);
+        };
       };
-    };
 
-    /** Get a value from radio button group
-     * @param {string} name - Name of the radio button group
-     * @returns {string} - Value of the selected radio button
-     */
-    const getRadioValue = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
+      /** Get a value from radio button group
+       * @param {string} name - Name of the radio button group
+       * @returns {string} - Value of the selected radio button
+       */
+      const getRadioValue = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
 
-    //----- DOM Element Selectors -----//
-    const elements = {
-      canvas: document.getElementById('gameCanvas'),
-      concOutsideInput: document.getElementById('concOutside'),
-      concInsideInput: document.getElementById('concInside'),
-      gradientValueDisplay: document.getElementById('gradientValue'),
-      membranePotentialInput: document.getElementById('membranePotential'),
-      resistanceRadios: document.querySelectorAll('input[name="resistance"]'),
-      startPositionRadios: document.querySelectorAll('input[name="startPosition"]'),
-      chargeRadios: document.querySelectorAll('input[name="ionCharge"]'),
-      resetButton: document.getElementById('reset'),
-      togglePlayPauseButton: document.getElementById('togglePlayPause'),
-      timerDisplay: document.getElementById('timerDisplay'),
-      tripTotalDisplay: document.getElementById('tripTotal'),
-      forceDisplay: document.getElementById('forceDisplay'),
-    };
-    const ctx = elements.canvas.getContext('2d');
+      //----- DOM Element Selectors -----//
+      const elements = {
+        canvas: document.getElementById('gameCanvas'),
+        concOutsideInput: document.getElementById('concOutside'),
+        concInsideInput: document.getElementById('concInside'),
+        gradientValueDisplay: document.getElementById('gradientValue'),
+        membranePotentialInput: document.getElementById('membranePotential'),
+        resistanceRadios: document.querySelectorAll('input[name="resistance"]'),
+        startPositionRadios: document.querySelectorAll('input[name="startPosition"]'),
+        chargeRadios: document.querySelectorAll('input[name="ionCharge"]'),
+        resetButton: document.getElementById('reset'),
+        togglePlayPauseButton: document.getElementById('togglePlayPause'),
+        timerDisplay: document.getElementById('timerDisplay'),
+        tripTotalDisplay: document.getElementById('tripTotal'),
+        forceDisplay: document.getElementById('forceDisplay'),
+        gradientValue: document.getElementById('gradientValue'),
+      };
+      const ctx = elements.canvas.getContext('2d');
 
-    //----- Constants -----//
-    const SIMULATION_CONSTANTS = {
-      RTF: 26.7, // RT/F in mV at 37°C
-      GROUND_LEVEL: 400,
-      MAX_SLOPE_HEIGHT: 200,
-      ELECTRODE_OFFSET: 40,
-      ELECTRODE_STICK_HEIGHT: 40,
-      POLE_RADIUS: 20,
-      BASE_SPEED: 5,
-      FORCE_THRESHOLD: 0.01,
-      BASE_RAMP_PX: 0, // Will be calculated dynamically
-      BUMP_PX: 60,
-    };
+      //----- Constants -----//
+      const SIMULATION_CONSTANTS = {
+        RTF: 26.7, // RT/F in mV at 37°C
+        GROUND_LEVEL: 400,
+        MAX_SLOPE_HEIGHT: 200,
+        ELECTRODE_OFFSET: 40,
+        ELECTRODE_STICK_HEIGHT: 40,
+        POLE_RADIUS: 20,
+        BASE_SPEED: 5,
+        FORCE_THRESHOLD: 0.01,
+        BASE_RAMP_PX: 0, // Will be calculated dynamically
+        BUMP_PX: 60,
+      };
 
-    //----- Simulation State -----//
-    const simulation = {
-  ramp: { startX: 100, endX: 700 },
-  ball: { t: 0, radius: 10, charge: -1 },
-  lastTimestamp: null,
-  lastTripCompleted: false,
-  currentDirection: 0,
-  previousRunData: null, // Run -1
-  currentRunData: null,  // Run 0
-  runCount: 0,
-};
+      //----- Simulation State -----//
+      const simulation = {
+        ramp: { startX: 100, endX: 700 },
+        ball: { t: 0, radius: 10, charge: -1 },
+        lastTimestamp: null,
+        lastTripCompleted: false,
+        currentDirection: 0,
+        previousRunData: null, // Run -1
+        currentRunData: null,  // Run 0
+        runCount: 0,
+      };
 
-const lightning = {
-  show: false,
-  animate: false,
-  showContactBolts: false // 👈 new flag
-};
-    //----- Initialization -----//
-    const initializeSimulation = () => {
-      // Calculate BASE_RAMP_PX dynamically
-      const { outside, inside } = calculateConcentrationGradient();
-      const maxConc = Math.max(outside, inside, 1);
-      const concScale = SIMULATION_CONSTANTS.MAX_SLOPE_HEIGHT / maxConc;
-      const aBarTop0 = SIMULATION_CONSTANTS.GROUND_LEVEL - (outside * concScale);
-      const bBarTop0 = SIMULATION_CONSTANTS.GROUND_LEVEL - (inside * concScale);
-      SIMULATION_CONSTANTS.BASE_RAMP_PX = Math.hypot(
-        simulation.ramp.endX - simulation.ramp.startX,
-        bBarTop0 - aBarTop0
-      );
+      const lightning = {
+        show: false,
+        animate: false,
+        showContactBolts: false // 👈 new flag
+      };
+      //----- Initialization -----//
+      const initializeSimulation = () => {
+        // Calculate BASE_RAMP_PX dynamically
+        const { outside, inside } = calculateConcentrationGradient();
+        const maxConc = Math.max(outside, inside, 1);
+        const concScale = SIMULATION_CONSTANTS.MAX_SLOPE_HEIGHT / maxConc;
+        const aBarTop0 = SIMULATION_CONSTANTS.GROUND_LEVEL - (outside * concScale);
+        const bBarTop0 = SIMULATION_CONSTANTS.GROUND_LEVEL - (inside * concScale);
+        SIMULATION_CONSTANTS.BASE_RAMP_PX = Math.hypot(
+          simulation.ramp.endX - simulation.ramp.startX,
+          bBarTop0 - aBarTop0
+        );
 
-      resetSimulation();
-      calculateForces(); // Initial calculation for display
-      gameLoop();
-    };
+        resetSimulation();
+        calculateForces(); // Initial calculation for display
+        gameLoop();
+      };
 
-    //----- Helper Functions -----//
+      //----- Helper Functions -----//
 
-    /** Gets the resistance value from the selected radio button.
-     * @returns {number} The resistance value.
-     */
-    const getResistanceValue = () => parseInt(getRadioValue('resistance'));
+      /** Gets the resistance value from the selected radio button.
+       * @returns {number} The resistance value.
+       */
+      const getResistanceValue = () => parseInt(getRadioValue('resistance'));
 
-    /** Gets the resistance text corresponding to the selected radio button.
-     * @returns {string} The resistance text.
-     */
-    const getResistanceText = () => ['None', 'Low', 'Medium', 'High'][getResistanceValue()];
+      /** Gets the resistance text corresponding to the selected radio button.
+       * @returns {string} The resistance text.
+       */
+      const getResistanceText = () => ['None', 'Low', 'Medium', 'High'][getResistanceValue()];
 
-    /** Gets the start position from the selected radio button.
-     * @returns {string} The start position ('A' or 'B').
-     */
-    const getStartPosition = () => getRadioValue('startPosition');
+      /** Gets the start position from the selected radio button.
+       * @returns {string} The start position ('A' or 'B').
+       */
+      const getStartPosition = () => getRadioValue('startPosition');
 
-    /** Gets the ion charge from the selected radio button.
-     * @returns {string} The ion charge ('+' or '-').
-     */
-    const getIonCharge = () => getRadioValue('ionCharge') === 'positive' ? '+' : '−';
+      /** Gets the ion charge from the selected radio button.
+       * @returns {string} The ion charge ('+' or '-').
+       */
+      const getIonCharge = () => getRadioValue('ionCharge') === 'positive' ? '+' : '−';
 
-    /** Calculates and displays the concentration gradient.
-     * @returns {object} An object containing outside concentration, inside concentration, and gradient.
-     */
-    const calculateConcentrationGradient = () => {
+      /** Calculates and displays the concentration gradient.
+       * @returns {object} An object containing outside concentration, inside concentration, and gradient.
+       */
+      const calculateConcentrationGradient = () => {
         const outside = parseFloat(elements.concOutsideInput.value);
         const inside = parseFloat(elements.concInsideInput.value);
         const validOutside = isNaN(outside) ? 100 : outside;
         const validInside = isNaN(inside) ? 10 : inside;
+        const gradient = validOutside - validInside;
+        elements.gradientValue.textContent = `${gradient} mM`;
+        return { outside: validOutside, inside: validInside, gradient };
+      };
 
-      const gradient = outside - inside;
-      elements.gradientValueDisplay.textContent = `Concentration Gradient: ${gradient} mM`;
-      return { outside, inside, gradient };
-    };
+      /** Determines the electrode orientation based on the membrane potential.
+       * @returns {string} The electrode orientation ('normal' or 'reversed').
+       */
+      const getElectrodeOrientation = () => (parseFloat(elements.membranePotentialInput.value) || -70) < 0 ? 'reversed' : 'normal';
 
-    /** Determines the electrode orientation based on the membrane potential.
-     * @returns {string} The electrode orientation ('normal' or 'reversed').
-     */
-    const getElectrodeOrientation = () => (parseFloat(elements.membranePotentialInput.value) || -70) < 0 ? 'reversed' : 'normal';
+      /** Calculates and displays the forces acting on the ion.
+       */
+      const calculateForces = () => {
+        const { outside, inside } = calculateConcentrationGradient();
+        const rawVm = parseFloat(elements.membranePotentialInput.value);
+        const Vm = isNaN(rawVm) ? -70 : rawVm;
+        const z = simulation.ball.charge;
+        const startPos = getStartPosition();
 
-    /** Calculates and displays the forces acting on the ion.
-     */
-    const calculateForces = () => {
-      const { outside, inside } = calculateConcentrationGradient();
-      const rawVm = parseFloat(elements.membranePotentialInput.value);
-      const Vm = isNaN(rawVm) ? -70 : rawVm;
-      const z = simulation.ball.charge;
-      const startPos = getStartPosition();
+        const E_ion = (SIMULATION_CONSTANTS.RTF / z) * Math.log(outside / inside);
 
-      const E_ion = (SIMULATION_CONSTANTS.RTF / z) * Math.log(outside / inside);
+        const CG = (outside - inside) * (startPos === 'B' ? -1 : 1);
+        const EG = (z * (Vm - E_ion)) * (startPos === 'B' ? -1 : 1);
+        const speed = (CG + EG) * SIMULATION_CONSTANTS.BASE_SPEED;
+        const pathLength = SIMULATION_CONSTANTS.BASE_RAMP_PX + getResistanceValue() * SIMULATION_CONSTANTS.BUMP_PX;
 
-      const CG = (outside - inside) * (startPos === 'B' ? -1 : 1);
-      const EG = (z * (Vm - E_ion)) * (startPos === 'B' ? -1 : 1);
-      const speed = (CG + EG) * SIMULATION_CONSTANTS.BASE_SPEED;
-      const pathLength = SIMULATION_CONSTANTS.BASE_RAMP_PX + getResistanceValue() * SIMULATION_CONSTANTS.BUMP_PX;
+        const largerArrowSize = 'font-size: 36px;';
+        const normalArrowSize = 'font-size: 20px;';
 
-      const largerArrowSize = 'font-size: 36px;';
-      const normalArrowSize = 'font-size: 20px;';
+        const largeStyle = 'font-size: 24px;';
+        const normalStyle = 'font-size: 18px;';
 
-      const largeStyle = 'font-size: 28px;';
-const normalStyle = 'font-size: 18px;';
+        // Determine which gradient is stronger
+        const isCGBigger = Math.abs(CG) >= Math.abs(EG);
 
-// Determine which gradient is stronger
-const isCGBigger = Math.abs(CG) >= Math.abs(EG);
+        // Assign styles
+        const CGStyle = `style="${isCGBigger ? largeStyle : normalStyle}"`;
+        const EGStyle = `style="${!isCGBigger ? largeStyle : normalStyle}"`;
+        const netStyle = `style="${largeStyle}"`;  // Always use large style for Net Movement
 
-// Assign styles
-const CGStyle = `style="${isCGBigger ? largeStyle : normalStyle}"`;
-const EGStyle = `style="${!isCGBigger ? largeStyle : normalStyle}"`;
-const netStyle = `style="${largeStyle}"`;  // Always use large style for Net Movement
-
-elements.forceDisplay.innerHTML = `
+        elements.forceDisplay.innerHTML = `
   <div style="display: flex; align-items: center; justify-content: center; gap: 40px; height: 100%;">
     <div style="display: flex; flex-direction: column; gap: 8px; text-align: left;">
       <div ${CGStyle}>Concentration Gradient: ${CG > 0 ? '→' : CG < 0 ? '←' : '0'}</div>
@@ -395,34 +469,38 @@ elements.forceDisplay.innerHTML = `
   </div>
 `;
 
-      return { speed, pathLength, E_ion };
-    };
+        return { speed, pathLength, E_ion };
+      };
 
-    /** Saves and displays the data from the previous run. */
-    const saveRunData = () => {
-  simulation.runCount += 1;  // <- Only increment, don't reassign
+      /** Saves and displays the data from the previous run. */
+      const saveRunData = () => {
+  simulation.runCount += 1;
 
   const startPos = getStartPosition();
-  const directionText = Math.abs(simulation.currentDirection) <= SIMULATION_CONSTANTS.FORCE_THRESHOLD
-    ? 'NO MOVEMENT'
-    : simulation.currentDirection > 0 ? 'IN → OUT' : 'OUT → IN';
+  let endPosition;
+  
+  if (Math.abs(simulation.currentDirection) <= SIMULATION_CONSTANTS.FORCE_THRESHOLD) {
+    endPosition = startPos; // No movement
+  } else {
+    endPosition = simulation.currentDirection > 0 ? 'OUT' : 'IN';
+  }
 
   simulation.previousRunData = simulation.currentRunData;
 
-  simulation.currentRunData = {
-    concOutside: elements.concOutsideInput.value,
-    concInside: elements.concInsideInput.value,
-    membranePotential: elements.membranePotentialInput.value,
-    resistance: getResistanceText(),
-    ionCharge: getIonCharge(),
-    startPosition: startPos,
-    tripTime: simulation.tripTimer.toFixed(1),
-    direction: directionText,
-  };
+        simulation.currentRunData = {
+          concOutside: elements.concOutsideInput.value,
+          concInside: elements.concInsideInput.value,
+          membranePotential: elements.membranePotentialInput.value,
+          resistance: getResistanceText(),
+          ionCharge: getIonCharge(),
+          startPosition: startPos,
+          tripTime: simulation.tripTimer.toFixed(1),
+          endPosition: endPosition  // New field
+        };
 
-  const tableBody = document.getElementById('runHistoryBody');
-  const row = document.createElement('tr');
-  row.innerHTML = `
+        const tableBody = document.getElementById('runHistoryBody');
+        const row = document.createElement('tr');
+        row.innerHTML = `
     <td>${simulation.runCount}</td>
     <td>${simulation.currentRunData.concOutside}</td>
     <td>${simulation.currentRunData.concInside}</td>
@@ -430,507 +508,523 @@ elements.forceDisplay.innerHTML = `
     <td>${simulation.currentRunData.resistance}</td>
     <td>${simulation.currentRunData.ionCharge}</td>
     <td>${simulation.currentRunData.startPosition}</td>
-    <td>${simulation.currentRunData.direction}</td>
+    <td>${simulation.currentRunData.endPosition}</td>
     <td>${simulation.currentRunData.tripTime}</td>
   `;
-  tableBody.insertBefore(row, tableBody.firstChild);
-  while (tableBody.rows.length > 3) {
-    tableBody.deleteRow(tableBody.rows.length - 1); // Remove the last row
-};
-}
+        tableBody.insertBefore(row, tableBody.firstChild);
+        while (tableBody.rows.length > 3) {
+          tableBody.deleteRow(tableBody.rows.length - 1); // Remove the last row
+        };
+      }
 
-    /** Resets the simulation to its initial state. */
-    const resetSimulation = () => {
-  simulation.ball.t = getStartPosition() === 'IN' ? 0 : 1;
-  simulation.tripTimer = 0;
-  simulation.lastTimestamp = null;
-  simulation.lastTripCompleted = false;
-  simulation.isPaused = true;
-  elements.togglePlayPauseButton.textContent = 'Play';
-  elements.timerDisplay.textContent = 'Trip Time: 0.0 s';
-  elements.tripTotalDisplay.textContent = 'Trip Total: 0.0 s';
-  elements.tripTotalDisplay.style.display = 'none';
-  lightning.show = true;
-  lightning.animate = true;
-  lightning.showContactBolts = false; // ✅ hide on reset
-};
-
-
-    /** Updates the simulation state based on the elapsed time.
-     * @param {number} deltaTime - The time elapsed since the last update in milliseconds.
-     */
-const updateSimulation = (deltaTime) => {
-  if (simulation.isPaused || simulation.lastTripCompleted) return;
-
-  const { speed, pathLength } = calculateForces();
-  const deltaDist = speed * (deltaTime / 1000);
-
-  simulation.ball.t += deltaDist / pathLength;
-  simulation.ball.t = Math.min(Math.max(simulation.ball.t, 0), 1);
-  simulation.currentDirection = Math.sign(speed);
-
-  simulation.tripTimer += deltaTime / 1000;
-  elements.timerDisplay.textContent = `Trip Time: ${simulation.tripTimer.toFixed(1)} s`;
-
-  const reachedBoundary =
-    (simulation.currentDirection > 0 && simulation.ball.t >= 1) ||
-    (simulation.currentDirection < 0 && simulation.ball.t <= 0);
-
-  // ✅ First check for boundary trip complete
-  if (reachedBoundary) {
-    elements.tripTotalDisplay.style.display = 'block';
-    elements.tripTotalDisplay.textContent = `Total: ${simulation.tripTimer.toFixed(1)} s`;
-    saveRunData();
-    simulation.lastTripCompleted = true;
-    simulation.isPaused = true;
-    lightning.show = false;
-    lightning.animate = false;
-    lightning.showContactBolts = true;
-    elements.togglePlayPauseButton.textContent = 'Play';
-    return; // ✅ stop after trip complete
-  }
-
-  // ✅ Then check for equilibrium case
-  if (simulation.currentDirection === 0 && !simulation.lastTripCompleted && simulation.tripTimer > 2.0) {
-    elements.tripTotalDisplay.style.display = 'block';
-    elements.tripTotalDisplay.textContent = `Equilibrium Reached - No Net Movement`;
-    saveRunData();
-    simulation.lastTripCompleted = true;
-    simulation.isPaused = true;
-    lightning.show = false;
-    lightning.animate = false;             // animate decorative bolts
-    lightning.showContactBolts = true;    // keep contact bolts visible
-    elements.togglePlayPauseButton.textContent = 'Play';
-    return;
-  }
-};
-
-    /**
-     * Calculates the position of the ball along the ramp, taking into account resistance bumps.
-     * @param {number} t - Normalized position of the ball (0 to 1).
-     * @returns {object} The x and y coordinates of the ball.
-     */
-    function getRampPosition(t) {
-      const { outside, inside } = calculateConcentrationGradient();
-      const resistance = getResistanceValue();
-      const { pathLength } = calculateForces();
-
-      // *** Normalize t to [0, 1] based on pathLength
-      const normalizedT = t / pathLength;
+      /** Resets the simulation to its initial state. */
+      const resetSimulation = () => {
+        simulation.ball.t = getStartPosition() === 'IN' ? 0 : 1;
+        simulation.tripTimer = 0;
+        simulation.lastTimestamp = null;
+        simulation.lastTripCompleted = false;
+        simulation.isPaused = true;
+        elements.togglePlayPauseButton.textContent = 'Play';
+        elements.timerDisplay.textContent = 'Trip Time: 0.0 s';
+        elements.tripTotalDisplay.textContent = 'Total: 0.0 s';
+        elements.tripTotalDisplay.style.visibility = 'hidden';
+        lightning.show = true;
+        lightning.animate = true;
+        lightning.showContactBolts = false; // ✅ hide on reset
+      };
 
 
-      // Original ramp slope
-      const aBarTop = SIMULATION_CONSTANTS.GROUND_LEVEL - (outside * (SIMULATION_CONSTANTS.MAX_SLOPE_HEIGHT / Math.max(outside, inside, 1)));
-      const bBarTop = SIMULATION_CONSTANTS.GROUND_LEVEL - (inside * (SIMULATION_CONSTANTS.MAX_SLOPE_HEIGHT / Math.max(outside, inside, 1)));
-      const deltaX = simulation.ramp.endX - simulation.ramp.startX;
-      const deltaY = bBarTop - aBarTop;
+      /** Updates the simulation state based on the elapsed time.
+       * @param {number} deltaTime - The time elapsed since the last update in milliseconds.
+       */
+      const updateSimulation = (deltaTime) => {
+        if (simulation.isPaused || simulation.lastTripCompleted) return;
 
-      // *** Base position (without bumps)
-      let x = simulation.ramp.startX + deltaX * normalizedT;
-      let y = aBarTop + deltaY * normalizedT;
+        const { speed, pathLength } = calculateForces();
+        const deltaDist = speed * (deltaTime / 1000);
 
-      // *** Add bumps (cosmetic only - path length already accounts for resistance)
-      if (resistance > 0) {
-        const amplitude = 15;
-        const loopCount = resistance;
-        const loopSpacing = 1 / (loopCount + 1);
-        const loopWidth = 0.1;
+        simulation.ball.t += deltaDist / pathLength;
+        simulation.ball.t = Math.min(Math.max(simulation.ball.t, 0), 1);
+        simulation.currentDirection = Math.sign(speed);
 
-        for (let j = 1; j <= loopCount; j++) {
-          const loopCenter = loopSpacing * j;
-          if (Math.abs(normalizedT - loopCenter) < loopWidth / 2) {
-            const loopPhase = (normalizedT - (loopCenter - loopWidth / 2)) / loopWidth;
-            const bump = Math.sin(loopPhase * Math.PI);
-            const loopOffset = bump * amplitude;
-            const length = Math.hypot(deltaX, deltaY);
-            const normalX = deltaY / length;
-            const normalY = -deltaX / length;
-            x += normalX * loopOffset;
-            y += normalY * loopOffset;
-            break;
+        simulation.tripTimer += deltaTime / 1000;
+        elements.timerDisplay.textContent = `Trip Time: ${simulation.tripTimer.toFixed(1)} s`;
+
+        const reachedBoundary =
+          (simulation.currentDirection > 0 && simulation.ball.t >= 1) ||
+          (simulation.currentDirection < 0 && simulation.ball.t <= 0);
+
+        const tripTotal = document.getElementById('tripTotal');
+
+        if (reachedBoundary) {
+          tripTotal.textContent = `Total: ${simulation.tripTimer.toFixed(1)} s`;
+          tripTotal.style.visibility = 'visible'; // ✅ show without shifting layout
+
+          saveRunData();
+          simulation.lastTripCompleted = true;
+          simulation.isPaused = true;
+          lightning.show = false;
+          lightning.animate = false;
+          lightning.showContactBolts = true;
+          elements.togglePlayPauseButton.textContent = 'Play';
+          return;
+        }
+
+
+        // ✅ Equilibrium case
+        if (simulation.currentDirection === 0 && !simulation.lastTripCompleted && simulation.tripTimer > 2.0) {
+          tripTotal.textContent = `Equilibrium Reached - No Net Movement`;
+          tripTotal.style.height = 'auto';
+          tripTotal.style.padding = '8px';
+          tripTotal.style.overflow = 'visible';
+          tripTotal.style.display = 'block'; // ✅ FIXED
+
+          saveRunData();
+          simulation.lastTripCompleted = true;
+          simulation.isPaused = true;
+          lightning.show = false;
+          lightning.animate = false;
+          lightning.showContactBolts = true;
+          elements.togglePlayPauseButton.textContent = 'Play';
+          return;
+        }
+      };
+
+
+      /**
+       * Calculates the position of the ball along the ramp, taking into account resistance bumps.
+       * @param {number} t - Normalized position of the ball (0 to 1).
+       * @returns {object} The x and y coordinates of the ball.
+       */
+      function getRampPosition(t) {
+        const { outside, inside } = calculateConcentrationGradient();
+        const resistance = getResistanceValue();
+        const { pathLength } = calculateForces();
+
+        // *** Normalize t to [0, 1] based on pathLength
+        const normalizedT = t / pathLength;
+
+
+        // Original ramp slope
+        const aBarTop = SIMULATION_CONSTANTS.GROUND_LEVEL - (outside * (SIMULATION_CONSTANTS.MAX_SLOPE_HEIGHT / Math.max(outside, inside, 1)));
+        const bBarTop = SIMULATION_CONSTANTS.GROUND_LEVEL - (inside * (SIMULATION_CONSTANTS.MAX_SLOPE_HEIGHT / Math.max(outside, inside, 1)));
+        const deltaX = simulation.ramp.endX - simulation.ramp.startX;
+        const deltaY = bBarTop - aBarTop;
+
+        // *** Base position (without bumps)
+        let x = simulation.ramp.startX + deltaX * normalizedT;
+        let y = aBarTop + deltaY * normalizedT;
+
+        // *** Add bumps (cosmetic only - path length already accounts for resistance)
+        if (resistance > 0) {
+          const amplitude = 15;
+          const loopCount = resistance;
+          const loopSpacing = 1 / (loopCount + 1);
+          const loopWidth = 0.1;
+
+          for (let j = 1; j <= loopCount; j++) {
+            const loopCenter = loopSpacing * j;
+            if (Math.abs(normalizedT - loopCenter) < loopWidth / 2) {
+              const loopPhase = (normalizedT - (loopCenter - loopWidth / 2)) / loopWidth;
+              const bump = Math.sin(loopPhase * Math.PI);
+              const loopOffset = bump * amplitude;
+              const length = Math.hypot(deltaX, deltaY);
+              const normalX = deltaY / length;
+              const normalY = -deltaX / length;
+              x += normalX * loopOffset;
+              y += normalY * loopOffset;
+              break;
+            }
           }
+        }
+
+        return { x, y };
+      }
+
+      function drawLightningBolt(startX, startY, endX, endY, color, animate = true) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.6;
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+
+        const segments = 6;
+        for (let i = 1; i <= segments; i++) {
+          const t = i / segments;
+          const x = startX + (endX - startX) * t;
+          const y = startY + (endY - startY) * t + (animate ? (Math.random() - 0.5) * 10 : 0);
+          ctx.lineTo(x, y);
+        }
+
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+      }
+      // Subtle lightning effect (faint jagged lines)
+      function drawLightning(x, y, color, direction = 1, animate = true) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.4;
+
+        for (let i = 0; i < 3; i++) {
+          let startX = x;
+          let startY = y;
+          ctx.beginPath();
+          ctx.moveTo(startX, startY);
+          for (let j = 0; j < 4; j++) {
+            const offsetX = animate ? (Math.random() - 0.5) * 10 : 0;
+            const offsetY = direction * (5 + (animate ? Math.random() * 10 : 0));
+            startX += offsetX;
+            startY += offsetY;
+            ctx.lineTo(startX, startY);
+          }
+          ctx.stroke();
+        }
+
+        ctx.globalAlpha = 1.0;
+      }
+      /** Draws the electrodes on the canvas. */
+      function drawElectrodes() {
+        const { outside, inside } = calculateConcentrationGradient();
+        const maxConc = Math.max(outside, inside, 1);
+        const concScale = SIMULATION_CONSTANTS.MAX_SLOPE_HEIGHT / maxConc;
+
+        const leftElectrodeY = SIMULATION_CONSTANTS.GROUND_LEVEL - (outside * concScale);
+        const rightElectrodeY = SIMULATION_CONSTANTS.GROUND_LEVEL - (inside * concScale);
+
+        const leftPoleCenterY = leftElectrodeY - 10;
+        const rightPoleCenterY = rightElectrodeY - 10;
+
+        const orientation = getElectrodeOrientation();
+        const leftPositive = (orientation === 'normal');
+
+        const leftX = simulation.ramp.startX - SIMULATION_CONSTANTS.ELECTRODE_OFFSET;
+        const rightX = simulation.ramp.endX + SIMULATION_CONSTANTS.ELECTRODE_OFFSET;
+
+        // Draw electrode sticks
+        ctx.strokeStyle = 'gray';
+        ctx.lineWidth = 4;
+
+        // Left stick
+        ctx.beginPath();
+        ctx.moveTo(leftX, SIMULATION_CONSTANTS.GROUND_LEVEL);
+        ctx.lineTo(leftX, leftElectrodeY);
+        ctx.stroke();
+
+        // Right stick
+        ctx.beginPath();
+        ctx.moveTo(rightX, SIMULATION_CONSTANTS.GROUND_LEVEL);
+        ctx.lineTo(rightX, rightElectrodeY);
+        ctx.stroke();
+
+        // Draw left pole
+        ctx.fillStyle = leftPositive ? '#ff0000' : '#0000ff';
+        ctx.beginPath();
+        ctx.arc(leftX, leftPoleCenterY, SIMULATION_CONSTANTS.POLE_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'white';
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(leftPositive ? '+' : '-', leftX, leftPoleCenterY);
+
+        // Draw right pole
+        ctx.fillStyle = leftPositive ? '#0000ff' : '#ff0000';
+        ctx.beginPath();
+        ctx.arc(rightX, rightPoleCenterY, SIMULATION_CONSTANTS.POLE_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'white';
+        ctx.fillText(leftPositive ? '-' : '+', rightX, rightPoleCenterY);
+
+        // Only show decorative lightning when flag is true
+        if (lightning.show) {
+          drawLightning(leftX, leftPoleCenterY - SIMULATION_CONSTANTS.POLE_RADIUS, leftPositive ? 'red' : 'blue', -1, lightning.animate);
+          drawLightning(rightX, rightPoleCenterY - SIMULATION_CONSTANTS.POLE_RADIUS, leftPositive ? 'blue' : 'red', -1, lightning.animate);
         }
       }
 
-      return { x, y };
-    }
-    
-    function drawLightningBolt(startX, startY, endX, endY, color, animate = true) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
-  ctx.globalAlpha = 0.6;
 
-  ctx.beginPath();
-  ctx.moveTo(startX, startY);
+      /** Draws the entire simulation on the canvas. */
+      function draw() {
+        // Clear canvas
+        ctx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
 
-  const segments = 6;
-  for (let i = 1; i <= segments; i++) {
-    const t = i / segments;
-    const x = startX + (endX - startX) * t;
-    const y = startY + (endY - startY) * t + (animate ? (Math.random() - 0.5) * 10 : 0);
-    ctx.lineTo(x, y);
-  }
+        // Draw ground line
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, SIMULATION_CONSTANTS.GROUND_LEVEL);
+        ctx.lineTo(elements.canvas.width, SIMULATION_CONSTANTS.GROUND_LEVEL);
+        ctx.stroke();
 
-  ctx.stroke();
-  ctx.globalAlpha = 1.0;
+        // Get concentrations and forces
+        const { outside, inside } = calculateConcentrationGradient();
+        const { E_ion, pathLength } = calculateForces();
+        const maxConc = Math.max(outside, inside, 1);
+        const concScale = SIMULATION_CONSTANTS.MAX_SLOPE_HEIGHT / maxConc;
+
+        // Compute bar tops
+        const aBarTop = SIMULATION_CONSTANTS.GROUND_LEVEL - (outside * concScale);
+        const bBarTop = SIMULATION_CONSTANTS.GROUND_LEVEL - (inside * concScale);
+
+        // Draw [IN] concentration bar
+        ctx.strokeStyle = 'forestgreen';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(simulation.ramp.startX, SIMULATION_CONSTANTS.GROUND_LEVEL);
+        ctx.lineTo(simulation.ramp.startX, aBarTop);
+        ctx.stroke();
+
+        // Draw [OUT] concentration bar
+        ctx.strokeStyle = '#FFA500';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(simulation.ramp.endX, SIMULATION_CONSTANTS.GROUND_LEVEL);
+        ctx.lineTo(simulation.ramp.endX, bBarTop);
+        ctx.stroke();
+
+        // Draw ramp with bumps
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        const steps = 100;
+        for (let i = 0; i <= steps; i++) {
+          const tDist = (i / steps) * pathLength;
+          const { x, y } = getRampPosition(tDist);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Draw resistance bumps
+        const resistance = getResistanceValue();
+        if (resistance > 0) {
+          const loopCount = resistance;
+          const loopSpacing = 1 / (loopCount + 1);
+          const loopWidth = 0.1;
+          ctx.strokeStyle = 'red';
+          for (let j = 1; j <= loopCount; j++) {
+            const loopCenter = loopSpacing * j;
+            const bumpSteps = 10;
+            ctx.beginPath();
+            for (let k = 0; k <= bumpSteps; k++) {
+              const t = (loopCenter - loopWidth / 2 + (k / bumpSteps) * loopWidth) * pathLength;
+              const { x, y } = getRampPosition(t);
+              if (k === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+          }
+        }
+
+        // Draw electrodes
+        drawElectrodes();
+
+        // Draw ball
+        const { x: ballX, y: ballY } = getRampPosition(simulation.ball.t * pathLength);
+        const ballCenterY = ballY - simulation.ball.radius;
+        ctx.fillStyle = simulation.ball.charge > 0 ? '#ff0000' : '#0000ff';
+        ctx.beginPath();
+        ctx.arc(ballX, ballCenterY, simulation.ball.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(simulation.ball.charge > 0 ? '+' : '-', ballX, ballCenterY);
+
+        // Draw contact lightning bolts
+        if (lightning.showContactBolts) {
+          const poleRadius = SIMULATION_CONSTANTS.POLE_RADIUS;
+
+          const leftElectrodeX = simulation.ramp.startX - SIMULATION_CONSTANTS.ELECTRODE_OFFSET + poleRadius;
+          const rightElectrodeX = simulation.ramp.endX + SIMULATION_CONSTANTS.ELECTRODE_OFFSET - poleRadius;
+
+          const leftElectrodeY = SIMULATION_CONSTANTS.GROUND_LEVEL - (outside * concScale) - 10;
+          const rightElectrodeY = SIMULATION_CONSTANTS.GROUND_LEVEL - (inside * concScale) - 10;
+
+          const ballLeftX = ballX - simulation.ball.radius;
+          const ballRightX = ballX + simulation.ball.radius;
+
+          const isPositiveLeft = getElectrodeOrientation() === 'normal';
+          const positiveColor = 'red';
+          const negativeColor = 'blue';
+
+          if (isPositiveLeft) {
+            drawLightningBolt(leftElectrodeX, leftElectrodeY, ballLeftX, ballCenterY, positiveColor, lightning.animate);
+            drawLightningBolt(rightElectrodeX, rightElectrodeY, ballRightX, ballCenterY, negativeColor, lightning.animate);
+          } else {
+            drawLightningBolt(leftElectrodeX, leftElectrodeY, ballLeftX, ballCenterY, negativeColor, lightning.animate);
+            drawLightningBolt(rightElectrodeX, rightElectrodeY, ballRightX, ballCenterY, positiveColor, lightning.animate);
+          }
+        }
+
+// Set text properties
+ctx.fillStyle = 'black';
+ctx.font = 'bold 28px sans-serif';
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle'; // Add this for vertical alignment
+
+// Calculate positions
+const textY = SIMULATION_CONSTANTS.GROUND_LEVEL + 25; // Start 25px below ground
+const valueY = textY + 30; // Values 30px below labels
+
+// Draw labels (black bold)
+ctx.fillText('[IN]', simulation.ramp.startX, textY);
+ctx.fillText('[OUT]', simulation.ramp.endX, textY);
+
+// Draw values (colored regular)
+ctx.font = '28px sans-serif'; // Non-bold for values
+ctx.fillStyle = 'forestgreen';
+ctx.fillText(`${outside.toFixed(0)} mM`, simulation.ramp.startX, valueY);
+ctx.fillStyle = '#FFA500';
+ctx.fillText(`${inside.toFixed(0)} mM`, simulation.ramp.endX, valueY);
+
+// Direction text (unchanged)
+let directionText;
+if (Math.abs(simulation.currentDirection) <= SIMULATION_CONSTANTS.FORCE_THRESHOLD) {
+  directionText = getStartPosition() === 'IN' ? 'IN → OUT' : 'NO MOVEMENT';
+} else {
+  directionText = simulation.currentDirection > 0 ? 'IN → OUT' : 'IN ← OUT';
 }
-         // Subtle lightning effect (faint jagged lines)
-         function drawLightning(x, y, color, direction = 1, animate = true) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1;
-  ctx.globalAlpha = 0.2;
-
-  for (let i = 0; i < 3; i++) {
-    let startX = x;
-    let startY = y;
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    for (let j = 0; j < 4; j++) {
-      const offsetX = animate ? (Math.random() - 0.5) * 10 : 0;
-      const offsetY = direction * (5 + (animate ? Math.random() * 10 : 0));
-      startX += offsetX;
-      startY += offsetY;
-      ctx.lineTo(startX, startY);
-    }
-    ctx.stroke();
-  }
-
-  ctx.globalAlpha = 1.0;
-}
-   /** Draws the electrodes on the canvas. */
-function drawElectrodes() {
-  const { outside, inside } = calculateConcentrationGradient();
-  const maxConc = Math.max(outside, inside, 1);
-  const concScale = SIMULATION_CONSTANTS.MAX_SLOPE_HEIGHT / maxConc;
-
-  const leftElectrodeY = SIMULATION_CONSTANTS.GROUND_LEVEL - (outside * concScale);
-  const rightElectrodeY = SIMULATION_CONSTANTS.GROUND_LEVEL - (inside * concScale);
-
-  const leftPoleCenterY = leftElectrodeY - 10;
-  const rightPoleCenterY = rightElectrodeY - 10;
-
-  const orientation = getElectrodeOrientation();
-  const leftPositive = (orientation === 'normal');
-
-  const leftX = simulation.ramp.startX - SIMULATION_CONSTANTS.ELECTRODE_OFFSET;
-  const rightX = simulation.ramp.endX + SIMULATION_CONSTANTS.ELECTRODE_OFFSET;
-
-  // Draw electrode sticks
-  ctx.strokeStyle = 'gray';
-  ctx.lineWidth = 4;
-
-  // Left stick
-  ctx.beginPath();
-  ctx.moveTo(leftX, SIMULATION_CONSTANTS.GROUND_LEVEL);
-  ctx.lineTo(leftX, leftElectrodeY);
-  ctx.stroke();
-
-  // Right stick
-  ctx.beginPath();
-  ctx.moveTo(rightX, SIMULATION_CONSTANTS.GROUND_LEVEL);
-  ctx.lineTo(rightX, rightElectrodeY);
-  ctx.stroke();
-
-  // Draw left pole
-  ctx.fillStyle = leftPositive ? '#ff0000' : '#0000ff';
-  ctx.beginPath();
-  ctx.arc(leftX, leftPoleCenterY, SIMULATION_CONSTANTS.POLE_RADIUS, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = 'white';
-  ctx.font = '20px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(leftPositive ? '+' : '-', leftX, leftPoleCenterY);
-
-  // Draw right pole
-  ctx.fillStyle = leftPositive ? '#0000ff' : '#ff0000';
-  ctx.beginPath();
-  ctx.arc(rightX, rightPoleCenterY, SIMULATION_CONSTANTS.POLE_RADIUS, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = 'white';
-  ctx.fillText(leftPositive ? '-' : '+', rightX, rightPoleCenterY);
-
-// Only show decorative lightning when flag is true
-if (lightning.show) {
-  drawLightning(leftX, leftPoleCenterY - SIMULATION_CONSTANTS.POLE_RADIUS, leftPositive ? 'red' : 'blue', -1, lightning.animate);
-  drawLightning(rightX, rightPoleCenterY - SIMULATION_CONSTANTS.POLE_RADIUS, leftPositive ? 'blue' : 'red', -1, lightning.animate);
-}
-}
-
-
-  /** Draws the entire simulation on the canvas. */
-function draw() {
-  // Clear canvas
-  ctx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
-
-  // Draw ground line
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, SIMULATION_CONSTANTS.GROUND_LEVEL);
-  ctx.lineTo(elements.canvas.width, SIMULATION_CONSTANTS.GROUND_LEVEL);
-  ctx.stroke();
-
-  // Get concentrations and forces
-  const { outside, inside } = calculateConcentrationGradient();
-  const { E_ion, pathLength } = calculateForces();
-  const maxConc = Math.max(outside, inside, 1);
-  const concScale = SIMULATION_CONSTANTS.MAX_SLOPE_HEIGHT / maxConc;
-
-  // Compute bar tops
-  const aBarTop = SIMULATION_CONSTANTS.GROUND_LEVEL - (outside * concScale);
-  const bBarTop = SIMULATION_CONSTANTS.GROUND_LEVEL - (inside * concScale);
-
-  // Draw [IN] concentration bar
-  ctx.strokeStyle = 'forestgreen';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(simulation.ramp.startX, SIMULATION_CONSTANTS.GROUND_LEVEL);
-  ctx.lineTo(simulation.ramp.startX, aBarTop);
-  ctx.stroke();
-
-  // Draw [OUT] concentration bar
-  ctx.strokeStyle = '#FFA500';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(simulation.ramp.endX, SIMULATION_CONSTANTS.GROUND_LEVEL);
-  ctx.lineTo(simulation.ramp.endX, bBarTop);
-  ctx.stroke();
-
-  // Draw ramp with bumps
-  ctx.strokeStyle = 'black';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  const steps = 100;
-  for (let i = 0; i <= steps; i++) {
-    const tDist = (i / steps) * pathLength;
-    const { x, y } = getRampPosition(tDist);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-
-  // Draw resistance bumps
-  const resistance = getResistanceValue();
-  if (resistance > 0) {
-    const loopCount = resistance;
-    const loopSpacing = 1 / (loopCount + 1);
-    const loopWidth = 0.1;
-    ctx.strokeStyle = 'red';
-    for (let j = 1; j <= loopCount; j++) {
-      const loopCenter = loopSpacing * j;
-      const bumpSteps = 10;
-      ctx.beginPath();
-      for (let k = 0; k <= bumpSteps; k++) {
-        const t = (loopCenter - loopWidth / 2 + (k / bumpSteps) * loopWidth) * pathLength;
-        const { x, y } = getRampPosition(t);
-        if (k === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
       }
-      ctx.stroke();
-    }
-  }
-
-  // Draw electrodes
-  drawElectrodes();
-
-  // Draw ball
-  const { x: ballX, y: ballY } = getRampPosition(simulation.ball.t * pathLength);
-  const ballCenterY = ballY - simulation.ball.radius;
-  ctx.fillStyle = simulation.ball.charge > 0 ? '#ff0000' : '#0000ff';
-  ctx.beginPath();
-  ctx.arc(ballX, ballCenterY, simulation.ball.radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'white';
-  ctx.font = '16px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(simulation.ball.charge > 0 ? '+' : '-', ballX, ballCenterY);
-
-  // Draw contact lightning bolts
-  if (lightning.showContactBolts) {
-    const poleRadius = SIMULATION_CONSTANTS.POLE_RADIUS;
-
-    const leftElectrodeX = simulation.ramp.startX - SIMULATION_CONSTANTS.ELECTRODE_OFFSET + poleRadius;
-    const rightElectrodeX = simulation.ramp.endX + SIMULATION_CONSTANTS.ELECTRODE_OFFSET - poleRadius;
-
-    const leftElectrodeY = SIMULATION_CONSTANTS.GROUND_LEVEL - (outside * concScale) - 10;
-    const rightElectrodeY = SIMULATION_CONSTANTS.GROUND_LEVEL - (inside * concScale) - 10;
-
-    const ballLeftX = ballX - simulation.ball.radius;
-    const ballRightX = ballX + simulation.ball.radius;
-
-    const isPositiveLeft = getElectrodeOrientation() === 'normal';
-    const positiveColor = 'red';
-    const negativeColor = 'blue';
-
-    if (isPositiveLeft) {
-      drawLightningBolt(leftElectrodeX, leftElectrodeY, ballLeftX, ballCenterY, positiveColor, lightning.animate);
-      drawLightningBolt(rightElectrodeX, rightElectrodeY, ballRightX, ballCenterY, negativeColor, lightning.animate);
-    } else {
-      drawLightningBolt(leftElectrodeX, leftElectrodeY, ballLeftX, ballCenterY, negativeColor, lightning.animate);
-      drawLightningBolt(rightElectrodeX, rightElectrodeY, ballRightX, ballCenterY, positiveColor, lightning.animate);
-    }
-  }
-
-  // Labels and info
-  ctx.fillStyle = 'black';
-  ctx.font = '14px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('[IN]', simulation.ramp.startX, SIMULATION_CONSTANTS.GROUND_LEVEL + 20);
-  ctx.fillText('[OUT]', simulation.ramp.endX, SIMULATION_CONSTANTS.GROUND_LEVEL + 20);
-
-  ctx.font = '14px sans-serif';
-  ctx.fillStyle = 'forestgreen';
-  ctx.fillText(`${outside.toFixed(0)} mM`, simulation.ramp.startX, SIMULATION_CONSTANTS.GROUND_LEVEL + 38);
-
-  ctx.fillStyle = '#FFA500';
-  ctx.fillText(`${inside.toFixed(0)} mM`, simulation.ramp.endX, SIMULATION_CONSTANTS.GROUND_LEVEL + 38);
-
-  let directionText;
-  if (Math.abs(simulation.currentDirection) <= SIMULATION_CONSTANTS.FORCE_THRESHOLD) {
-    directionText = getStartPosition() === 'IN' ? 'IN → OUT' : 'NO MOVEMENT';
-  } else {
-    directionText = simulation.currentDirection > 0 ? 'IN → OUT' : 'IN ← OUT';
-  }
-}
-
-    /**
-     * The main game loop function.  It updates the simulation state and redraws the canvas.
-     * @param {number} timestamp - The current time in milliseconds.
-     */
-    function gameLoop(timestamp) {
-      if (simulation.lastTimestamp !== null) {
-        const deltaTime = timestamp - simulation.lastTimestamp;
-        updateSimulation(deltaTime);
+      /**
+       * The main game loop function.  It updates the simulation state and redraws the canvas.
+       * @param {number} timestamp - The current time in milliseconds.
+       */
+      function gameLoop(timestamp) {
+        if (simulation.lastTimestamp !== null) {
+          const deltaTime = timestamp - simulation.lastTimestamp;
+          updateSimulation(deltaTime);
+        }
+        simulation.lastTimestamp = timestamp;
+        draw();
+        requestAnimationFrame(gameLoop);
       }
-      simulation.lastTimestamp = timestamp;
-      draw();
-      requestAnimationFrame(gameLoop);
-    }
 
-    // Event listeners
-    elements.concOutsideInput.addEventListener('input', debounce(() => {
+      // Event listeners
+      elements.concOutsideInput.addEventListener('input', debounce(() => {
         let v = parseFloat(input.value);
         if (isNaN(v) || v < 0) v = 0;  // allow zero
-      else if (v > 1000) v = 1000;
-      elements.concOutsideInput.value = v;
+        else if (v > 1000) v = 1000;
+        elements.concOutsideInput.value = v;
 
-      calculateConcentrationGradient();
-      calculateForces(); 
-      resetSimulation();
-      draw();
-    }));
+        calculateConcentrationGradient();
+        calculateForces();
+        resetSimulation();
+        draw();
+      }));
 
-    elements.concInsideInput.addEventListener('input', debounce(() => {
-  const input = elements.concInsideInput.value;
+      elements.concInsideInput.addEventListener('input', debounce(() => {
+        const input = elements.concInsideInput.value;
 
-  // Allow empty or partial input like "-"
-  if (input === '' || input === '-') return;
+        // Allow empty or partial input like "-"
+        if (input === '' || input === '-') return;
 
-  let v = parseFloat(input);
-  if (isNaN(v)) return;
+        let v = parseFloat(input);
+        if (isNaN(v)) return;
 
-  // Clamp only if necessary
-  if (v < 0) v = 0;
-  if (v > 1000) v = 1000;
+        // Clamp only if necessary
+        if (v < 0) v = 0;
+        if (v > 1000) v = 1000;
 
-  elements.concInsideInput.value = v;
+        elements.concInsideInput.value = v;
 
-  calculateConcentrationGradient();
-  calculateForces();
-  resetSimulation();
-  draw();
-}));
-
-
-    elements.membranePotentialInput.addEventListener('input', debounce(() => {
-  const input = elements.membranePotentialInput.value;
-
-  // Don't process if the input is just "-" or empty
-  if (input === '' || input === '-') return;
-
-  let v = parseFloat(input);
-  if (isNaN(v)) return;
-
-  // Clamp value if outside range
-  if (v < -100) v = -100;
-  if (v > 100) v = 100;
-
-  elements.membranePotentialInput.value = v;
-  calculateForces();
-  resetSimulation();
-  draw();
-}));
+        calculateConcentrationGradient();
+        calculateForces();
+        resetSimulation();
+        draw();
+      }));
 
 
-    elements.resistanceRadios.forEach(radio => {
-      radio.addEventListener('change', () => {
+      elements.membranePotentialInput.addEventListener('input', debounce(() => {
+        const input = elements.membranePotentialInput.value;
+
+        // Don't process if the input is just "-" or empty
+        if (input === '' || input === '-') return;
+
+        let v = parseFloat(input);
+        if (isNaN(v)) return;
+
+        // Clamp value if outside range
+        if (v < -100) v = -100;
+        if (v > 100) v = 100;
+
+        elements.membranePotentialInput.value = v;
+        calculateForces();
+        resetSimulation();
+        draw();
+      }));
+
+
+      elements.resistanceRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+          calculateForces();  // 👈 Add this line
+          resetSimulation();
+          draw();
+        });
+      });
+
+      elements.startPositionRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+          calculateForces();  // 👈 Add this line
+          resetSimulation();
+          draw();
+        });
+      });
+
+      elements.chargeRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+          simulation.ball.charge = radio.value === 'negative' ? -1 : 1;
+          calculateForces();  // 👈 Add this line
+          resetSimulation();
+          draw();
+        });
+      });
+
+      elements.resetButton.addEventListener('click', () => {
         calculateForces();  // 👈 Add this line
         resetSimulation();
         draw();
       });
-    });
 
-    elements.startPositionRadios.forEach(radio => {
-      radio.addEventListener('change', () => {
-        calculateForces();  // 👈 Add this line
-        resetSimulation();
-        draw();
+      document.getElementById('clearHistory').addEventListener('click', () => {
+        const tableBody = document.getElementById('runHistoryBody');
+        tableBody.innerHTML = ''; // Clear all rows
+        simulation.runCount = 0;  // Reset counter
       });
-    });
 
-    elements.chargeRadios.forEach(radio => {
-      radio.addEventListener('change', () => {
-        simulation.ball.charge = radio.value === 'negative' ? -1 : 1;
-        calculateForces();  // 👈 Add this line
-        resetSimulation();
-        draw();
-      });
-    });
-
-    elements.resetButton.addEventListener('click', () => {
-        calculateForces();  // 👈 Add this line
-      resetSimulation();
-      draw();
-    });
-    
-    document.getElementById('clearHistory').addEventListener('click', () => {
-  const tableBody = document.getElementById('runHistoryBody');
-  tableBody.innerHTML = ''; // Clear all rows
-  simulation.runCount = 0;  // Reset counter
-    });
-
-    elements.togglePlayPauseButton.addEventListener('click', () => {
+      elements.togglePlayPauseButton.addEventListener('click', () => {
         if (simulation.lastTripCompleted) {
-    resetSimulation();
-    simulation.lastTripCompleted = false;
-  }
+          resetSimulation();
+          simulation.lastTripCompleted = false;
+        }
 
-  simulation.isPaused = !simulation.isPaused;
+        simulation.isPaused = !simulation.isPaused;
 
-  if (!simulation.isPaused) {
-  simulation.lastTimestamp = null;
-  lightning.show = false;              // ✅ Hide decorative when run begins
-  lightning.animate = true;            // animate contact bolts only
-  lightning.showContactBolts = true;
-} else {
-  lightning.animate = false;
-  lightning.showContactBolts = true;
-}
+        if (!simulation.isPaused) {
+          simulation.lastTimestamp = null;
+          lightning.show = false;              // ✅ Hide decorative when run begins
+          lightning.animate = true;            // animate contact bolts only
+          lightning.showContactBolts = true;
+        } else {
+          lightning.animate = false;
+          lightning.showContactBolts = true;
+        }
 
 
-  elements.togglePlayPauseButton.textContent = simulation.isPaused ? 'Play' : 'Pause';
-});
+        elements.togglePlayPauseButton.textContent = simulation.isPaused ? 'Play' : 'Pause';
+      });
 
-    // Initialize
-    initializeSimulation();
-    lightning.show = true;
-    lightning.animate = true;
-    lightning.showContactBolts = false;
-    
-  </script>
+      // Initialize
+      initializeSimulation();
+      lightning.show = true;
+      lightning.animate = true;
+      lightning.showContactBolts = false;
+
+    </script>
 </body>
+
 </html>
